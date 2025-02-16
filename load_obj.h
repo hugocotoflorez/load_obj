@@ -18,8 +18,16 @@
  * 0: do not show debugging info */
 #define DEBUG 0
 
+enum __options
+// no yet implemented
+{
+        LOAD_NOLOAD = 0, /* Do not load into VAO */
+        LOAD_3_3 = 1, /* Load using opengl version 3.3 */
+        LOAD_1_2 = 2, /* Load using opengl version 1.2 */
+};
+
 /* Load wavefront (.obj) file (filename) into vao.
  * You can change DEBUG and QUIET variables here */
-void load_obj(const char *filename, int *vao);
+void load_obj(const char *filename, unsigned int *vao, unsigned int* indexes_size, int options);
 
 #endif
