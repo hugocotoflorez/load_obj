@@ -7,6 +7,7 @@
 #include <GLFW/glfw3.h> // also included in glad
 #include <assert.h>
 #include <stdio.h> // fuck u iostream
+#include <strings.h>
 
 #define BG_COLOR .0f, .0f, .0f, 1.0f
 #define WIDTH 600
@@ -124,6 +125,8 @@ main()
 
         load_obj("square.obj", &VAO, &indexes_size, LOAD_3_3);
         printf("cube.obj loaded\n");
+
+        printf("Printing %d indexes (%d triangles)\n", indexes_size, indexes_size / 3);
 
         return mainloop(window);
 }

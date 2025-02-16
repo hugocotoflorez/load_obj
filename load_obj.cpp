@@ -177,7 +177,7 @@ __delete_obj()
 typedef struct
 {
         unsigned int size;
-        int *data;
+        unsigned int *data;
 } Indexes;
 
 static Indexes
@@ -187,16 +187,16 @@ __get_indexes_from_faces()
         for (int i = 0; i < obj.f_size; ++i)
         {
                 ind.data =
-                (int *) REALLOCARRAY(ind.data, ind.size + (obj.face[i].size - 2) * 3,
-                                     sizeof(int));
+                (unsigned int *) REALLOCARRAY(ind.data,
+                                              ind.size + (obj.face[i].size - 2) * 3,
+                                              sizeof(unsigned int));
                 for (int j = 0; j < obj.face[i].size - 2; ++j)
                 {
-                        (ind.data)[j * 3] = obj.face[i].f[j].v - 1;
+                        (ind.data)[j * 3] = obj.face[i].f[0].v - 1;
                         (ind.data)[j * 3 + 1] = obj.face[i].f[j + 1].v - 1;
                         (ind.data)[j * 3 + 2] = obj.face[i].f[j + 2].v - 1;
-                        debug_printf("[TRIANGLE]: %d %d %d (%d,%d,%d)\n",
-                                     obj.face[i].f[j].v, obj.face[i].f[j + 1].v,
-                                     obj.face[i].f[j + 2].v, j * 3, j * 3 + 1, j * 3 + 2);
+                        printf("[TRIANGLE]: %d %d %d \n", obj.face[i].f[0].v,
+                               obj.face[i].f[j + 1].v, obj.face[i].f[j + 2].v);
                 }
                 ind.size += (obj.face[i].size - 2) * 3;
         }
@@ -266,7 +266,7 @@ __load_to_vao(GLuint *vao, unsigned int *indexes_size)
                 Indexes indexes = __get_indexes_from_faces();
 
                 printf("[INDEXES] ");
-                for (int i =0; i < indexes.size; i++)
+                for (int i = 0; i < indexes.size; i++)
                         printf("%u ", indexes.data[i]);
                 puts("");
 
@@ -484,7 +484,10 @@ load_obj(const char *filename, unsigned int *vao, unsigned int *indexes_size, in
         }
 
         __obj_print_info();
-        __load_to_vao(vao, indexes_size);
+        if (options & LOAD_3_3)
+                __load_to_vao(vao, indexes_size);
+        if (options & LOAD_1_2)
+                printf("LOAD 1.2 not implemented!\n");
         __delete_obj();
 }
 
@@ -498,7 +501,7 @@ main(int argc, char *argv[])
                 printf("Usage: %s <file.obj>\n", argv[0]);
                 return 0;
         }
-        load_obj(argv[1], 0, 0);
+        load_obj(argv[1], 0, 0, LOAD_NOLOAD);
         return 0;
 }
 
