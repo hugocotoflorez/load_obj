@@ -35,10 +35,19 @@
 typedef struct __attribute__((packed)) { float x, y, z, w; } vec4;
 typedef struct __attribute__((packed)) { float x, y, z; } vec3;
 typedef struct __attribute__((packed)) { float u, v, w; } uvw3;
-typedef struct __attribute__((packed)) {int v, vt, vn;} fvec;
+typedef struct __attribute__((packed)) {unsigned int v, vt, vn;} fvec;
 typedef struct { fvec *f; int size; } face_T;
 typedef struct { int* v; int size; } line_T;
 // clang-format on
+
+__attribute__((constructor)) void
+__typetest__()
+{
+        assert(sizeof(vec3) == sizeof(float) * 3);
+        assert(sizeof(vec4) == sizeof(float) * 4);
+        assert(sizeof(uvw3) == sizeof(float) * 3);
+        assert(sizeof(fvec) == sizeof(unsigned int) * 3);
+}
 
 struct __obj
 {
@@ -168,10 +177,10 @@ __delete_obj()
         free(obj.normal);
         free(obj.parameter);
         free(obj.face);
-        if (obj.line)
-                for (int i = 0; i < obj.l_size; ++i)
-                        free(obj.line[i].v);
+        for (int i = 0; i < obj.l_size; ++i)
+                free(obj.line[i].v);
         free(obj.line);
+        __clear_obj();
 }
 
 typedef struct
@@ -192,11 +201,14 @@ __get_indexes_from_faces()
                                               sizeof(unsigned int));
                 for (int j = 0; j < obj.face[i].size - 2; ++j)
                 {
-                        (ind.data)[j * 3] = obj.face[i].f[0].v - 1;
-                        (ind.data)[j * 3 + 1] = obj.face[i].f[j + 1].v - 1;
-                        (ind.data)[j * 3 + 2] = obj.face[i].f[j + 2].v - 1;
-                        printf("[TRIANGLE]: %d %d %d \n", obj.face[i].f[0].v,
+                        (ind.data + ind.size)[j * 3] = obj.face[i].f[0].v - 1;
+                        (ind.data + ind.size)[j * 3 + 1] = obj.face[i].f[j + 1].v - 1;
+                        (ind.data + ind.size)[j * 3 + 2] = obj.face[i].f[j + 2].v - 1;
+
+#if !defined(QUIET) || QUIET == 0
+                        printf("[TRIANGLE]: %d %d %d\n", obj.face[i].f[0].v,
                                obj.face[i].f[j + 1].v, obj.face[i].f[j + 2].v);
+#endif
                 }
                 ind.size += (obj.face[i].size - 2) * 3;
         }
@@ -246,6 +258,8 @@ __load_to_vao(GLuint *vao, unsigned int *indexes_size)
         if (obj.vertex)
                 glBufferData(GL_ARRAY_BUFFER, obj.v_size * sizeof(vec4),
                              obj.vertex, GL_STATIC_DRAW);
+        else
+                printf("OBJ has no vertexes!\n");
 
         /* ----[ EBO ]---- */
         /* Generates an Element Buffer Object (EBO) and binds it.
@@ -253,8 +267,8 @@ __load_to_vao(GLuint *vao, unsigned int *indexes_size)
          * - `GL_ELEMENT_ARRAY_BUFFER`: Specifies that this buffer
          *   holds indices for indexed drawing. */
         glGenBuffers(1, &EBO);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
         assert(EBO);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
 
         /* Allocates and copies index data into the EBO.
          * - `sizeof(indices)`: Size of the index data in bytes.
@@ -265,10 +279,18 @@ __load_to_vao(GLuint *vao, unsigned int *indexes_size)
         {
                 Indexes indexes = __get_indexes_from_faces();
 
-                printf("[INDEXES] ");
+                /*
+                printf("[INDEXES]\n");
                 for (int i = 0; i < indexes.size; i++)
+                {
                         printf("%u ", indexes.data[i]);
-                puts("");
+                        printf("(%1.1f %1.1f %1.1f %1.1f)\n",
+                               obj.vertex[indexes.data[i]].x,
+                               obj.vertex[indexes.data[i]].y,
+                               obj.vertex[indexes.data[i]].z,
+                               obj.vertex[indexes.data[i]].w);
+                }
+                 */
 
                 glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexes.size * sizeof(unsigned int),
                              indexes.data, GL_STATIC_DRAW);
@@ -320,7 +342,7 @@ __add_vertex(const char *s)
         tmp->x = 0;
         tmp->y = 0;
         tmp->z = 0;
-        tmp->w = 0;
+        tmp->w = 1.0;
         sscanf(s, "%f %f %f %f", &tmp->x, &tmp->y, &tmp->z, &tmp->w);
         debug_printf("[+] VERT %d: %f %f %f %f\n", obj.v_size, tmp->x, tmp->y,
                      tmp->z, tmp->w);

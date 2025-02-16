@@ -10,7 +10,7 @@
 #include <strings.h>
 
 #define BG_COLOR .0f, .0f, .0f, 1.0f
-#define WIDTH 600
+#define WIDTH 640
 #define HEIGHT 480
 
 /* Global to made easy share it among funtions */
@@ -59,9 +59,10 @@ main()
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
         /* ---- Create the main window ---- */
-        // Monitor = NULL
+        //GLFWmonitor *monitor = glfwGetPrimaryMonitor(); // fullscreen
+        GLFWmonitor *monitor = NULL;
         // Share = NULL
-        GLFWwindow *window = glfwCreateWindow(WIDTH, HEIGHT, "Titulo", NULL, NULL);
+        GLFWwindow *window = glfwCreateWindow(WIDTH, HEIGHT, "Titulo", monitor, NULL);
 
         if (window == NULL)
         {
@@ -124,7 +125,7 @@ main()
 
 
         load_obj("square.obj", &VAO, &indexes_size, LOAD_3_3);
-        printf("cube.obj loaded\n");
+        printf(".obj loaded\n");
 
         printf("Printing %d indexes (%d triangles)\n", indexes_size, indexes_size / 3);
 
