@@ -1,10 +1,6 @@
-test: test.o
-	g++ test.o load_obj.o -o test -lglad -lglfw
+test: test.cpp load_obj.cpp
+	g++ test.cpp load_obj.cpp -o test -lglad -lglfw
+# -fsanitize=address,null -g
 
-test.o: test.cpp load_obj.o setShaders.h
-	g++ -c test.cpp
-
-load_obj.o: load_obj.cpp load_obj.h
-	g++ -c load_obj.cpp
 
 

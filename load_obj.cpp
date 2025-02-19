@@ -1,4 +1,5 @@
 #include <cassert>
+#include <cstdlib>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -63,11 +64,12 @@ struct __obj
         int p_size;
         int f_size;
         int l_size;
-} obj;
+        int cum_index;
+} obj = { 0 };
 
 
 #if QUIET
-static void
+static inline void
 __obj_print_info()
 {
 }
@@ -201,13 +203,18 @@ __get_indexes_from_faces()
                                               sizeof(unsigned int));
                 for (int j = 0; j < obj.face[i].size - 2; ++j)
                 {
-                        (ind.data + ind.size)[j * 3] = obj.face[i].f[0].v - 1;
-                        (ind.data + ind.size)[j * 3 + 1] = obj.face[i].f[j + 1].v - 1;
-                        (ind.data + ind.size)[j * 3 + 2] = obj.face[i].f[j + 2].v - 1;
+                        (ind.data + ind.size)[j * 3] =
+                        obj.face[i].f[0].v - 1 - obj.cum_index;
+                        (ind.data + ind.size)[j * 3 + 1] =
+                        obj.face[i].f[j + 1].v - 1 - obj.cum_index;
+                        (ind.data + ind.size)[j * 3 + 2] =
+                        obj.face[i].f[j + 2].v - 1 - obj.cum_index;
 
 #if !defined(QUIET) || QUIET == 0
-                        printf("[TRIANGLE]: %d %d %d\n", obj.face[i].f[0].v,
-                               obj.face[i].f[j + 1].v, obj.face[i].f[j + 2].v);
+                        printf("[TRIANGLE]: %d %d %d\n",
+                               obj.face[i].f[0].v - obj.cum_index,
+                               obj.face[i].f[j + 1].v - obj.cum_index,
+                               obj.face[i].f[j + 2].v - obj.cum_index);
 #endif
                 }
                 ind.size += (obj.face[i].size - 2) * 3;
@@ -295,6 +302,7 @@ __load_to_vao(GLuint *vao, unsigned int *indexes_size)
                 glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexes.size * sizeof(unsigned int),
                              indexes.data, GL_STATIC_DRAW);
                 *indexes_size = indexes.size;
+                obj.cum_index += obj.v_size;
         }
         else
         {
@@ -332,6 +340,9 @@ __load_to_vao(GLuint *vao, unsigned int *indexes_size)
          * unintentionally. This is good practice when
          * working with multiple *vaos. */
         glBindVertexArray(0);
+
+        glDeleteBuffers(1, &EBO);
+        glDeleteBuffers(1, &VBO);
 }
 
 static void
@@ -475,7 +486,17 @@ __add_line(const char *s)
 }
 
 void
-load_obj(const char *filename, unsigned int *vao, unsigned int *indexes_size, int options)
+__named_object(const char *name)
+{
+#if defined(QUIET) && QUIET
+        printf("New object: ");
+        printf("%s", name);
+#endif
+}
+
+void
+load_obj(const char *filename, unsigned int **vao_arr,
+         unsigned int *vao_arr_size, unsigned int **indexes_size_arr, int options)
 {
         FILE *file;
         char buf[1024];
@@ -487,10 +508,42 @@ load_obj(const char *filename, unsigned int *vao, unsigned int *indexes_size, in
                 return;
         }
 
-        __clear_obj();
+#define INC_VAO_ARR()                                                          \
+        (*vao_arr = (unsigned int *) REALLOCARRAY(*vao_arr, *vao_arr_size + 1, \
+                                                  sizeof(unsigned int)))
+
+#define INC_INDEXES_ARR()                                                    \
+        (*indexes_size_arr =                                                 \
+         (unsigned int *) REALLOCARRAY(*indexes_size_arr, *vao_arr_size + 1, \
+                                       sizeof(unsigned int)))
+
 
         while (fgets(buf, sizeof buf - 1, file))
         {
+                if (!memcmp(buf, "o ", 2))
+                {
+                        if (obj.v_size > 0)
+                        {
+                                __obj_print_info();
+                                if (options & LOAD_3_3)
+                                {
+                                        INC_VAO_ARR();
+                                        INC_INDEXES_ARR();
+                                        __load_to_vao(&((*vao_arr)[*vao_arr_size]),
+                                                      &((*indexes_size_arr)[*vao_arr_size]));
+
+                                        printf("LOADED %d indexes (%d "
+                                               "triangles)\n",
+                                               (*indexes_size_arr)[*vao_arr_size],
+                                               (*indexes_size_arr)[*vao_arr_size] / 3);
+                                        ++*vao_arr_size;
+                                }
+                                if (options & LOAD_1_2)
+                                        printf("LOAD 1.2 not implemented!\n");
+                        }
+                        __delete_obj();
+                        __named_object(buf + 2);
+                }
                 if (!memcmp(buf, "v ", 2))
                         __add_vertex(buf + 2);
                 if (!memcmp(buf, "vt ", 3))
@@ -507,9 +560,21 @@ load_obj(const char *filename, unsigned int *vao, unsigned int *indexes_size, in
 
         __obj_print_info();
         if (options & LOAD_3_3)
-                __load_to_vao(vao, indexes_size);
+        {
+                INC_VAO_ARR();
+                INC_INDEXES_ARR();
+                __load_to_vao(&((*vao_arr)[*vao_arr_size]),
+                              &((*indexes_size_arr)[*vao_arr_size]));
+
+                printf("LOADED %d indexes (%d triangles)\n",
+                       (*indexes_size_arr)[*vao_arr_size],
+                       (*indexes_size_arr)[*vao_arr_size] / 3);
+                ++*vao_arr_size;
+        }
         if (options & LOAD_1_2)
                 printf("LOAD 1.2 not implemented!\n");
+
+
         __delete_obj();
 }
 

@@ -11,7 +11,7 @@
 /* QUIET possible values
  * 1: Supress any output
  * 0: Show loaded object info */
-#define QUIET 1
+#define QUIET 0
 
 /* DEBUG possible values.
  * 1: show info about loading process
@@ -26,8 +26,8 @@ enum __options
         LOAD_1_2 = 2, /* Load using opengl version 1.2 */
 };
 
-/* Load wavefront (.obj) file (filename) into vao.
- * You can change DEBUG and QUIET variables here */
-void load_obj(const char *filename, unsigned int *vao, unsigned int* indexes_size, int options);
+/* Load wavefront (.obj) file (filename) into vao array. */
+void load_obj(const char *filename, unsigned int **vao_arr,
+              unsigned int *vao_arr_size, unsigned int **indexes_size, int options);
 
 #endif

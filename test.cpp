@@ -2,6 +2,10 @@
 
 #include "load_obj.h"
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 #include "setShaders.h"
 #include <GL/gl.h> // also included in glad
 #include <GLFW/glfw3.h> // also included in glad
@@ -15,9 +19,29 @@
 
 /* Global to made easy share it among funtions */
 GLuint shader_program;
-unsigned int VAO;
-unsigned int indexes_size;
+unsigned int *indexes_size_arr = NULL;
 
+unsigned int *VAO_ARR = NULL;
+unsigned int VAO_ARR_SIZE = 0;
+
+
+/* --- CHATGPT moment --- */
+
+// Matriz de proyección en perspectiva
+glm::mat4 projection =
+glm::perspective(glm::radians(45.0f), (float) WIDTH / (float) HEIGHT, 0.1f, 100.0f);
+
+// Matriz de vista (coloca la cámara en (0,0,3) mirando al origen)
+glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 0.0f, 3.0f), // Posición de la cámara
+                             glm::vec3(0.0f, 0.0f, 0.0f), // A dónde mira
+                             glm::vec3(0.0f, 1.0f, 0.0f) // Vector "arriba"
+);
+
+float cameraZ = 3.0f; // Distancia inicial de la cámara
+float rotationAngle_Y = 0.0f;
+float rotationAngle_X = 0.0f;
+
+/* --- END --- */
 
 int mainloop(GLFWwindow *window);
 
@@ -31,6 +55,31 @@ __process_input(GLFWwindow *window)
         // check if escape is pressed
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
                 glfwSetWindowShouldClose(window, true);
+
+
+        // Acercar la cámara con W
+        if (glfwGetKey(window, GLFW_KEY_J) == GLFW_PRESS)
+                cameraZ -= 0.1f;
+
+        // Alejar la cámara con S
+        if (glfwGetKey(window, GLFW_KEY_K) == GLFW_PRESS)
+                cameraZ += 0.1f;
+
+        // Acercar la cámara con W
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+                rotationAngle_X -= 2.0f;
+
+        // Alejar la cámara con S
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+                rotationAngle_X += 2.0f;
+
+        // Rotar a la izquierda con A
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+                rotationAngle_Y -= 2.0f; // Ajusta la velocidad de rotación
+
+        // Rotar a la derecha con D
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+                rotationAngle_Y += 2.0f;
 }
 
 /* This function is called on window resize */
@@ -44,7 +93,7 @@ __framebuffer_size_callback(GLFWwindow *window, int width, int height)
 
 /* Entry point: Initialize stuff and then enter mainloop. */
 int
-main()
+main(int argc, char **argv)
 {
         /* ---- Init GLFW ---- */
         if (!glfwInit())
@@ -59,9 +108,9 @@ main()
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
         /* ---- Create the main window ---- */
-        //GLFWmonitor *monitor = glfwGetPrimaryMonitor(); // fullscreen
-        GLFWmonitor *monitor = NULL;
-        // Share = NULL
+        GLFWmonitor *monitor = glfwGetPrimaryMonitor(); // fullscreen
+        // GLFWmonitor *monitor = NULL; // floating (or not)
+        //  Share = NULL
         GLFWwindow *window = glfwCreateWindow(WIDTH, HEIGHT, "Titulo", monitor, NULL);
 
         if (window == NULL)
@@ -102,6 +151,8 @@ main()
         // hide back faces
         glEnable(GL_CULL_FACE);
         glCullFace(GL_BACK);
+        // do not hide
+        // glDisable(GL_CULL_FACE);
 
         /* Program shader */
         shader_program =
@@ -124,10 +175,19 @@ main()
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
 
-        load_obj("square.obj", &VAO, &indexes_size, LOAD_3_3);
+        if (argc == 2)
+                load_obj(argv[1], &VAO_ARR, &VAO_ARR_SIZE, &indexes_size_arr, LOAD_3_3);
+        else
+                load_obj("objs/cube.obj", &VAO_ARR, &VAO_ARR_SIZE, &indexes_size_arr, LOAD_3_3);
+
+
         printf(".obj loaded\n");
 
-        printf("Printing %d indexes (%d triangles)\n", indexes_size, indexes_size / 3);
+        printf("%u vaos loaded\n", VAO_ARR_SIZE);
+
+
+        assert(VAO_ARR);
+        assert(VAO_ARR_SIZE);
 
         return mainloop(window);
 }
@@ -136,6 +196,11 @@ main()
 int
 mainloop(GLFWwindow *window)
 {
+        GLuint projectionLoc =
+        glGetUniformLocation(shader_program, "projection");
+        GLuint viewLoc = glGetUniformLocation(shader_program, "view");
+        unsigned int VAO;
+
         /* Execute until window is closed */
         while (!glfwWindowShouldClose(window))
         {
@@ -149,50 +214,73 @@ mainloop(GLFWwindow *window)
 
                 // Use shader program
                 glUseProgram(shader_program);
+                view = glm::lookAt(glm::vec3(0.0f, 0.0f, cameraZ), // Posición de la cámara
+                                   glm::vec3(0.0f, 0.0f, 0.0f), // A dónde mira
+                                   glm::vec3(0.0f, 1.0f, 0.0f)); // Vector "arriba"
 
-                /* Binds the specified Vertex Array Object
-                 * (VAO).
-                 * This ensures that subsequent vertex
-                 * operations use the correct VAO
-                 * configuration.
-                 * Without this, OpenGL wouldn't know which
-                 * vertex data to use. */
-                glBindVertexArray(VAO);
+                glm::mat4 model = glm::mat4(1.0f); // Matriz identidad
+                model = glm::rotate(model, glm::radians(rotationAngle_Y),
+                                    glm::vec3(0.0f, 1.0f, 0.0f)); // Rotar en eje Y
+                model = glm::rotate(model, glm::radians(rotationAngle_X),
+                                    glm::vec3(1.0f, 0.0f, 0.0f)); // Rotar en eje X
 
-                /* Renders primitives (lines, triangles, etc.)
-                 * using vertex data in order.
-                 * - `GL_LINES`: Draws lines, each pair of
-                 *   vertices forms a line.
-                 * - `0`: Starts from the first vertex in
-                 *   the buffer.
-                 * - `6`: Number of vertices to process
-                 *   (draws 3 lines).
-                 * Use this when you don't need indexed
-                 * drawing. */
-                // glDrawArrays(GL_LINES, 0, 6);
-                // glDrawArrays(GL_TRIANGLES, 0, 6); // for square
+                GLuint modelLoc = glGetUniformLocation(shader_program, "model");
+                glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
 
-                /* Renders primitives using indexed drawing
-                 * with an Element Buffer Object (EBO).
-                 * - `GL_LINES`: Draws lines using the
-                 *   specified indices.
-                 * - `6`: Number of indices to read from the
-                 *   EBO.
-                 * - `GL_UNSIGNED_INT`: Type of the indices
-                 *   in the EBO.
-                 * - `0`: Start at the beginning of the EBO.
-                 * Use this when vertices are reused to
-                 * optimize memory usage. */
-                // glDrawElements(GL_LINES, 6, GL_UNSIGNED_INT, 0);
+                glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
+                glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
 
-                glDrawElements(GL_TRIANGLES, indexes_size, GL_UNSIGNED_INT, 0);
+                for (unsigned int i = 0; i < VAO_ARR_SIZE; ++i)
+                {
+                        VAO = VAO_ARR[i];
+                        /* Binds the specified Vertex Array Object
+                         * (VAO).
+                         * This ensures that subsequent vertex
+                         * operations use the correct VAO
+                         * configuration.
+                         * Without this, OpenGL wouldn't know which
+                         * vertex data to use. */
+                        glBindVertexArray(VAO);
 
-                /* Unbinds the currently active VAO.
-                 * This prevents unintended modifications to
-                 * the VAO.
-                 * It's a good practice when working with
-                 * multiple VAOs. */
-                glBindVertexArray(0);
+                        /* Renders primitives (lines, triangles, etc.)
+                         * using vertex data in order.
+                         * - `GL_LINES`: Draws lines, each pair of
+                         *   vertices forms a line.
+                         * - `0`: Starts from the first vertex in
+                         *   the buffer.
+                         * - `6`: Number of vertices to process
+                         *   (draws 3 lines).
+                         * Use this when you don't need indexed
+                         * drawing. */
+                        // glDrawArrays(GL_LINES, 0, 6);
+                        // glDrawArrays(GL_TRIANGLES, 0, 6); // for square
+
+                        /* Renders primitives using indexed drawing
+                         * with an Element Buffer Object (EBO).
+                         * - `GL_LINES`: Draws lines using the
+                         *   specified indices.
+                         * - `6`: Number of indices to read from the
+                         *   EBO.
+                         * - `GL_UNSIGNED_INT`: Type of the indices
+                         *   in the EBO.
+                         * - `0`: Start at the beginning of the EBO.
+                         * Use this when vertices are reused to
+                         * optimize memory usage. */
+                        // glDrawElements(GL_LINES, 6, GL_UNSIGNED_INT, 0);
+
+                        assert(VAO);
+                        assert(indexes_size_arr[i] > 0);
+
+                        glDrawElements(GL_TRIANGLES, indexes_size_arr[i],
+                                       GL_UNSIGNED_INT, 0);
+
+                        /* Unbinds the currently active VAO.
+                         * This prevents unintended modifications to
+                         * the VAO.
+                         * It's a good practice when working with
+                         * multiple VAOs. */
+                        glBindVertexArray(0);
+                }
 
                 /* @brief Swaps the front and back buffers of
                  * the specified window.
@@ -221,7 +309,12 @@ mainloop(GLFWwindow *window)
          * It's important to call this when the VAO is no
          * longer needed to avoid memory leaks.
          */
-        glDeleteVertexArrays(1, &VAO);
+
+        for (unsigned int i = 0; i < VAO_ARR_SIZE; ++i)
+        {
+                VAO = VAO_ARR[i];
+                glDeleteVertexArrays(1, &VAO);
+        }
 
         /* Deletes the specified Vertex Buffer Object (VBO).
          * This releases the allocated GPU memory for vertex
