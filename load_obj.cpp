@@ -1,3 +1,6 @@
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 #include <cassert>
 #include <cstdlib>
 #include <stdio.h>
@@ -5,6 +8,7 @@
 #include <string.h>
 
 #include <glad/glad.h>
+#include <strings.h>
 
 #include "load_obj.h"
 
@@ -153,7 +157,6 @@ __obj_print_info()
 
 #endif
 
-
 static void
 __clear_obj()
 {
@@ -178,10 +181,13 @@ __delete_obj()
         free(obj.texture);
         free(obj.normal);
         free(obj.parameter);
+        for (int i = 0; i < obj.f_size; ++i)
+                free(obj.face[i].f);
         free(obj.face);
         for (int i = 0; i < obj.l_size; ++i)
                 free(obj.line[i].v);
         free(obj.line);
+
         __clear_obj();
 }
 
@@ -222,6 +228,51 @@ __get_indexes_from_faces()
         return ind;
 }
 
+// typedef struct
+// {
+// } Material;
+//
+// static Material
+// __get_material(const char *mtl_file, const char *mtl_name)
+// {
+//         FILE *f = fopen(mtl_file, "r");
+//         Material mat;
+//         char buf[256];
+//
+//         assert(f);
+//
+//         while (fgets(buf, sizeof buf - 1, f))
+//         {
+//                 if (!memcmp(buf, "newmtl ", 7))
+//                 {
+//                         if (!strcmp(buf + 7, mtl_name))
+//                         {
+//                                 // clang-format off
+//                                 fscanf(f, "Ns %f\n", &mat.Ns);
+//                                 fscanf(f, "Ka %f %f %f\n", &mat.Ka[0],&mat.Ka[1], &mat.Ka[2]);
+//                                 fscanf(f, "Ks %f %f %f\n", &mat.Ks[0],&mat.Ks[1], &mat.Ks[2]);
+//                                 fscanf(f, "Ke %f %f %f\n", &mat.Ke[0],&mat.Ke[1], &mat.Ke[2]);
+//                                 fscanf(f, "Ni %f\n", &mat.Ni);
+//                                 fscanf(f, "d %f\n", &mat.d);
+//                                 fscanf(f, "illum %u\n", &mat.illum);
+//                                 // clang-format on
+//                                 break;
+//                         }
+//                 }
+//         }
+//
+//
+//         glUniform3f(glGetUniformLocation(shaderProgram, "material.ambient"),
+//                     mat.Ka[0], mat.Ka[1], mat.Ka[2]);
+//         glUniform3f(glGetUniformLocation(shaderProgram, "material.diffuse"),
+//                     mat.Kd[0], mat.Kd[1], mat.Kd[2]);
+//         glUniform3f(glGetUniformLocation(shaderProgram, "material.specular"),
+//                     mat.Ks[0], mat.Ks[1], mat.Ks[2]);
+//         glUniform1f(glGetUniformLocation(shaderProgram, "material.shininess"),
+//                     mat.Ns);
+//
+//         fclose(f);
+// }
 static int
 __is_valid_obj()
 {
@@ -263,8 +314,18 @@ __load_to_vao(GLuint *vao, unsigned int *indexes_size)
          * - `GL_STATIC_DRAW`: Data is set once and used
          *   many times (optimized for performance). */
         if (obj.vertex)
-                glBufferData(GL_ARRAY_BUFFER, obj.v_size * sizeof(vec4),
-                             obj.vertex, GL_STATIC_DRAW);
+        {
+                vec4 *data = (vec4 *) malloc(sizeof(vec4) * (obj.v_size + obj.t_size));
+                for (int i = 0; i < obj.v_size; ++i)
+                {
+                        data[2 * i] = obj.vertex[i];
+                        data[2 * i + 1].x = obj.texture[i].u;
+                        data[2 * i + 1].y = obj.texture[i].v;
+                        data[2 * i + 1].z = obj.texture[i].w;
+                }
+                glBufferData(GL_ARRAY_BUFFER, (obj.v_size + obj.t_size) * sizeof(vec4),
+                             data, GL_STATIC_DRAW);
+        }
         else
                 printf("OBJ has no vertexes!\n");
 
@@ -303,12 +364,15 @@ __load_to_vao(GLuint *vao, unsigned int *indexes_size)
                              indexes.data, GL_STATIC_DRAW);
                 *indexes_size = indexes.size;
                 obj.cum_index += obj.v_size;
+                free(indexes.data);
         }
         else
         {
                 printf("Can not load to vao as figure has no faces\n");
                 return;
         }
+
+        // link texture
 
         /* ----[ ~~~ ]---- */
 
@@ -325,12 +389,16 @@ __load_to_vao(GLuint *vao, unsigned int *indexes_size)
          * - `(void *)0`: Offset in the buffer
          *   (starts at the beginning).
          */
-        glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void *) 0);
+        glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *) 0);
 
         /* Enables the vertex attribute at location 0.
          * This allows OpenGL to use the vertex data
          * when rendering. */
         glEnableVertexAttribArray(0);
+
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
+                              (void *) (4 * sizeof(float)));
+        glEnableVertexAttribArray(1);
 
         /* Unbinds the VBO to prevent accidental
          * modification. Not neccesary */
@@ -488,11 +556,47 @@ __add_line(const char *s)
 void
 __named_object(const char *name)
 {
-#if defined(QUIET) && QUIET
+#if !defined(QUIET) || !QUIET
         printf("New object: ");
         printf("%s", name);
 #endif
 }
+
+
+GLuint
+loadTexture(const char *filename)
+{
+        GLuint textureID;
+        int width;
+        int height;
+        int nrChannels;
+        glGenTextures(1, &textureID);
+        glBindTexture(GL_TEXTURE_2D, textureID);
+
+        // Configuración de la textura
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        // Cargar la imagen
+        unsigned char *data = stbi_load(filename, &width, &height, &nrChannels, 0);
+        if (data)
+        {
+                GLenum format = (nrChannels == 3) ? GL_RGB : GL_RGBA;
+                glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format,
+                             GL_UNSIGNED_BYTE, data);
+                glGenerateMipmap(GL_TEXTURE_2D);
+        }
+        else
+        {
+                printf("Error al cargar la textura: %s\n", filename);
+        }
+        stbi_image_free(data);
+
+        return textureID;
+}
+
 
 void
 load_obj(const char *filename, unsigned int **vao_arr,
@@ -532,10 +636,10 @@ load_obj(const char *filename, unsigned int **vao_arr,
                                         __load_to_vao(&((*vao_arr)[*vao_arr_size]),
                                                       &((*indexes_size_arr)[*vao_arr_size]));
 
-                                        printf("LOADED %d indexes (%d "
-                                               "triangles)\n",
-                                               (*indexes_size_arr)[*vao_arr_size],
-                                               (*indexes_size_arr)[*vao_arr_size] / 3);
+                                        debug_printf("LOADED %d indexes (%d "
+                                                     "triangles)\n",
+                                                     (*indexes_size_arr)[*vao_arr_size],
+                                                     (*indexes_size_arr)[*vao_arr_size] / 3);
                                         ++*vao_arr_size;
                                 }
                                 if (options & LOAD_1_2)
@@ -566,9 +670,9 @@ load_obj(const char *filename, unsigned int **vao_arr,
                 __load_to_vao(&((*vao_arr)[*vao_arr_size]),
                               &((*indexes_size_arr)[*vao_arr_size]));
 
-                printf("LOADED %d indexes (%d triangles)\n",
-                       (*indexes_size_arr)[*vao_arr_size],
-                       (*indexes_size_arr)[*vao_arr_size] / 3);
+                debug_printf("LOADED %d indexes (%d triangles)\n",
+                             (*indexes_size_arr)[*vao_arr_size],
+                             (*indexes_size_arr)[*vao_arr_size] / 3);
                 ++*vao_arr_size;
         }
         if (options & LOAD_1_2)
@@ -576,6 +680,7 @@ load_obj(const char *filename, unsigned int **vao_arr,
 
 
         __delete_obj();
+        fclose(file);
 }
 
 #ifdef TEST

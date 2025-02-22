@@ -189,7 +189,15 @@ main(int argc, char **argv)
         assert(VAO_ARR);
         assert(VAO_ARR_SIZE);
 
-        return mainloop(window);
+        mainloop(window);
+
+        free(VAO_ARR);
+        free(indexes_size_arr);
+
+        //glfwDestroyWindow(window);
+        glfwTerminate();
+
+        return 0;
 }
 
 /* Main loop. Executed until program is closed manually. */
@@ -323,6 +331,5 @@ mainloop(GLFWwindow *window)
          */
         // glDeleteBuffers(1, &VBO);
 
-        glfwTerminate();
         return 0;
 }
