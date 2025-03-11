@@ -12,6 +12,7 @@
 #include <assert.h>
 #include <stdio.h> // fuck u iostream
 #include <strings.h>
+#include <vector>
 
 #define BG_COLOR .0f, .0f, .0f, 1.0f
 #define WIDTH 640
@@ -19,11 +20,8 @@
 
 /* Global to made easy share it among funtions */
 GLuint shader_program;
-unsigned int *indexes_size_arr = NULL;
 
-unsigned int *VAO_ARR = NULL;
-unsigned int VAO_ARR_SIZE = 0;
-
+std::vector<lObject> objects;
 
 /* --- CHATGPT moment --- */
 
@@ -96,8 +94,7 @@ int
 main(int argc, char **argv)
 {
         /* ---- Init GLFW ---- */
-        if (!glfwInit())
-        {
+        if (!glfwInit()) {
                 printf("Can not init glfw\n");
                 return 1;
         }
@@ -113,8 +110,7 @@ main(int argc, char **argv)
         //  Share = NULL
         GLFWwindow *window = glfwCreateWindow(WIDTH, HEIGHT, "Titulo", monitor, NULL);
 
-        if (window == NULL)
-        {
+        if (window == NULL) {
                 perror("glfwCreateWindow");
                 glfwTerminate(); // terminate initialized glfw
                 return 1;
@@ -134,8 +130,7 @@ main(int argc, char **argv)
 
 
         /* Load the GLAD. IDK what is this */
-        if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress))
-        {
+        if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress)) {
                 perror("gladLoadGLLoader");
                 /* In main1_33a.cpp it just return but I think
                  * it is needed to call glfwTerminate(). */
@@ -176,25 +171,24 @@ main(int argc, char **argv)
 
 
         if (argc == 2)
-                load_obj(argv[1], &VAO_ARR, &VAO_ARR_SIZE, &indexes_size_arr, LOAD_3_3);
-        else
-                load_obj("objs/cube.obj", &VAO_ARR, &VAO_ARR_SIZE, &indexes_size_arr, LOAD_3_3);
+                objects = load_obj(argv[1], LOAD_3_3);
+        else {
+                printf("Usage %s <file.obj>\n", argv[0]);
+                exit(0);
+        }
 
 
         printf(".obj loaded\n");
 
-        printf("%u vaos loaded\n", VAO_ARR_SIZE);
+        printf("%zu vaos loaded\n", objects.size());
 
 
-        assert(VAO_ARR);
-        assert(VAO_ARR_SIZE);
+        assert(objects.size() > 0);
 
         mainloop(window);
 
-        free(VAO_ARR);
-        free(indexes_size_arr);
 
-        //glfwDestroyWindow(window);
+        // glfwDestroyWindow(window);
         glfwTerminate();
 
         return 0;
@@ -210,8 +204,7 @@ mainloop(GLFWwindow *window)
         unsigned int VAO;
 
         /* Execute until window is closed */
-        while (!glfwWindowShouldClose(window))
-        {
+        while (!glfwWindowShouldClose(window)) {
                 // Call our process input function
                 __process_input(window);
 
@@ -238,9 +231,8 @@ mainloop(GLFWwindow *window)
                 glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
                 glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
 
-                for (unsigned int i = 0; i < VAO_ARR_SIZE; ++i)
-                {
-                        VAO = VAO_ARR[i];
+                for (lObject obj : objects) {
+                        VAO = obj.vao;
                         /* Binds the specified Vertex Array Object
                          * (VAO).
                          * This ensures that subsequent vertex
@@ -277,10 +269,8 @@ mainloop(GLFWwindow *window)
                         // glDrawElements(GL_LINES, 6, GL_UNSIGNED_INT, 0);
 
                         assert(VAO);
-                        assert(indexes_size_arr[i] > 0);
 
-                        glDrawElements(GL_TRIANGLES, indexes_size_arr[i],
-                                       GL_UNSIGNED_INT, 0);
+                        glDrawElements(GL_TRIANGLES, obj.index_n, GL_UNSIGNED_INT, 0);
 
                         /* Unbinds the currently active VAO.
                          * This prevents unintended modifications to
@@ -318,10 +308,8 @@ mainloop(GLFWwindow *window)
          * longer needed to avoid memory leaks.
          */
 
-        for (unsigned int i = 0; i < VAO_ARR_SIZE; ++i)
-        {
-                VAO = VAO_ARR[i];
-                glDeleteVertexArrays(1, &VAO);
+        for (lObject &obj : objects) {
+                glDeleteVertexArrays(1, &obj.vao);
         }
 
         /* Deletes the specified Vertex Buffer Object (VBO).

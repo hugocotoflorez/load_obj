@@ -1,14 +1,11 @@
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
-
 #include <cassert>
-#include <cstdlib>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include <glad/glad.h>
 #include <strings.h>
+#include <vector>
 
 #include "load_obj.h"
 
@@ -27,8 +24,7 @@
 #define REALLOCARRAY(ptr, nmemb, size)                       \
         ({                                                   \
                 void *ret = reallocarray(ptr, nmemb, size);  \
-                if (!ret)                                    \
-                {                                            \
+                if (!ret) {                                  \
                         printf(__FILE__ ": %d: ", __LINE__); \
                         perror("reallocarray");              \
                 }                                            \
@@ -54,8 +50,7 @@ __typetest__()
         assert(sizeof(fvec) == sizeof(unsigned int) * 3);
 }
 
-struct __obj
-{
+struct __obj {
         vec4 *vertex;
         uvw3 *texture;
         vec3 *normal;
@@ -83,8 +78,7 @@ static void
 __obj_print_info()
 {
 #define o (obj.vertex[i])
-        if (obj.v_size > 0)
-        {
+        if (obj.v_size > 0) {
                 puts("[VERTEX]");
                 for (int i = 0; i < obj.v_size; ++i)
                         printf("[%d] %f %f %f %f\n", i + 1, o.x, o.y, o.z, o.w);
@@ -92,8 +86,7 @@ __obj_print_info()
 #undef o
 
 #define o (obj.texture[i])
-        if (obj.t_size > 0)
-        {
+        if (obj.t_size > 0) {
                 puts("[TEXTURE]");
                 for (int i = 0; i < obj.t_size; ++i)
                         printf("[%d] %f %f %f\n", i + 1, o.u, o.v, o.w);
@@ -101,8 +94,7 @@ __obj_print_info()
 #undef o
 
 #define o (obj.normal[i])
-        if (obj.n_size > 0)
-        {
+        if (obj.n_size > 0) {
                 puts("[NORMAL]");
                 for (int i = 0; i < obj.n_size; ++i)
                         printf("[%d] %f %f %f\n", i + 1, o.x, o.y, o.z);
@@ -110,8 +102,7 @@ __obj_print_info()
 #undef o
 
 #define o (obj.parameter[i])
-        if (obj.p_size > 0)
-        {
+        if (obj.p_size > 0) {
                 puts("[PARAM]");
                 for (int i = 0; i < obj.p_size; ++i)
                         printf("[%d] %f %f %f\n", i + 1, o.u, o.v, o.w);
@@ -119,11 +110,9 @@ __obj_print_info()
 #undef o
 
 #define o (obj.face[i])
-        if (obj.f_size > 0)
-        {
+        if (obj.f_size > 0) {
                 puts("[FACE]");
-                for (int i = 0; i < obj.f_size; ++i)
-                {
+                for (int i = 0; i < obj.f_size; ++i) {
                         printf("[%d] ", i + 1);
                         for (int j = 0; j < o.size; ++j)
                                 if (o.f[j].vn && o.f[j].vt)
@@ -141,11 +130,9 @@ __obj_print_info()
 #undef o
 
 #define o (obj.line[i])
-        if (obj.l_size > 0)
-        {
+        if (obj.l_size > 0) {
                 puts("[LINE]");
-                for (int i = 0; i < obj.l_size; ++i)
-                {
+                for (int i = 0; i < obj.l_size; ++i) {
                         printf("[%d] ", i + 1);
                         for (int j = 0; j < o.size; ++j)
                                 printf("%d ", o.v[j]);
@@ -191,8 +178,7 @@ __delete_obj()
         __clear_obj();
 }
 
-typedef struct
-{
+typedef struct {
         unsigned int size;
         unsigned int *data;
 } Indexes;
@@ -201,14 +187,12 @@ static Indexes
 __get_indexes_from_faces()
 {
         Indexes ind = { .size = 0, .data = NULL };
-        for (int i = 0; i < obj.f_size; ++i)
-        {
+        for (int i = 0; i < obj.f_size; ++i) {
                 ind.data =
                 (unsigned int *) REALLOCARRAY(ind.data,
                                               ind.size + (obj.face[i].size - 2) * 3,
                                               sizeof(unsigned int));
-                for (int j = 0; j < obj.face[i].size - 2; ++j)
-                {
+                for (int j = 0; j < obj.face[i].size - 2; ++j) {
                         (ind.data + ind.size)[j * 3] =
                         obj.face[i].f[0].v - 1 - obj.cum_index;
                         (ind.data + ind.size)[j * 3 + 1] =
@@ -280,12 +264,12 @@ __is_valid_obj()
 }
 
 static void
-__load_to_vao(GLuint *vao, unsigned int *indexes_size)
+__load_to_vao(lObject *o)
 {
         GLuint VBO, EBO;
+        GLuint *vao = &o->vao;
 
-        if (!__is_valid_obj())
-        {
+        if (!__is_valid_obj()) {
                 printf("OBJ is not printable\n");
                 return;
         }
@@ -313,11 +297,9 @@ __load_to_vao(GLuint *vao, unsigned int *indexes_size)
          * - ``: Pointer to the vertex data.
          * - `GL_STATIC_DRAW`: Data is set once and used
          *   many times (optimized for performance). */
-        if (obj.vertex)
-        {
+        if (obj.vertex) {
                 vec4 *data = (vec4 *) malloc(sizeof(vec4) * (obj.v_size + obj.t_size));
-                for (int i = 0; i < obj.v_size; ++i)
-                {
+                for (int i = 0; i < obj.v_size; ++i) {
                         data[2 * i] = obj.vertex[i];
                         data[2 * i + 1].x = obj.texture[i].u;
                         data[2 * i + 1].y = obj.texture[i].v;
@@ -325,8 +307,7 @@ __load_to_vao(GLuint *vao, unsigned int *indexes_size)
                 }
                 glBufferData(GL_ARRAY_BUFFER, (obj.v_size + obj.t_size) * sizeof(vec4),
                              data, GL_STATIC_DRAW);
-        }
-        else
+        } else
                 printf("OBJ has no vertexes!\n");
 
         /* ----[ EBO ]---- */
@@ -343,8 +324,7 @@ __load_to_vao(GLuint *vao, unsigned int *indexes_size)
          * - `indices`: Pointer to the index data.
          * - `GL_STATIC_DRAW`: Data is set once and used
          *   many times (optimized for performance). */
-        if (obj.face)
-        {
+        if (obj.face) {
                 Indexes indexes = __get_indexes_from_faces();
 
                 /*
@@ -362,12 +342,10 @@ __load_to_vao(GLuint *vao, unsigned int *indexes_size)
 
                 glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexes.size * sizeof(unsigned int),
                              indexes.data, GL_STATIC_DRAW);
-                *indexes_size = indexes.size;
+                o->index_n = indexes.size;
                 obj.cum_index += obj.v_size;
                 free(indexes.data);
-        }
-        else
-        {
+        } else {
                 printf("Can not load to vao as figure has no faces\n");
                 return;
         }
@@ -504,8 +482,7 @@ __add_face(const char *s)
         debug_printf("[+] FACE %d: ", obj.f_size + 1);
         tmp->f = NULL;
         tmp->size = 0;
-        while (sptr)
-        {
+        while (sptr) {
                 __add_face_entry(tmp, sptr);
                 debug_putchar(' ');
                 sptr = strtok(NULL, " ");
@@ -520,8 +497,7 @@ static void
 __add_line_entry(line_T *l, char *s)
 {
         char *sptr = strtok(s, " ");
-        while (sptr)
-        {
+        while (sptr) {
                 l->v = (int *) REALLOCARRAY(l->v, l->size, sizeof(int));
                 (l->v)[l->size] = atoi(sptr);
                 sptr = strtok(NULL, " ");
@@ -539,8 +515,7 @@ __add_line(const char *s)
         sptr = strtok(s_cpy, " ");
         tmp->size = 0;
         tmp->v = NULL;
-        while (sptr)
-        {
+        while (sptr) {
                 __add_line_entry(tmp, sptr);
                 sptr = strtok(NULL, " ");
         }
@@ -563,84 +538,28 @@ __named_object(const char *name)
 }
 
 
-GLuint
-loadTexture(const char *filename)
-{
-        GLuint textureID;
-        int width;
-        int height;
-        int nrChannels;
-        glGenTextures(1, &textureID);
-        glBindTexture(GL_TEXTURE_2D, textureID);
-
-        // Configuración de la textura
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-        // Cargar la imagen
-        unsigned char *data = stbi_load(filename, &width, &height, &nrChannels, 0);
-        if (data)
-        {
-                GLenum format = (nrChannels == 3) ? GL_RGB : GL_RGBA;
-                glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format,
-                             GL_UNSIGNED_BYTE, data);
-                glGenerateMipmap(GL_TEXTURE_2D);
-        }
-        else
-        {
-                printf("Error al cargar la textura: %s\n", filename);
-        }
-        stbi_image_free(data);
-
-        return textureID;
-}
-
-
-void
-load_obj(const char *filename, unsigned int **vao_arr,
-         unsigned int *vao_arr_size, unsigned int **indexes_size_arr, int options)
+std::vector<lObject>
+load_obj(const char *filename, int options)
 {
         FILE *file;
         char buf[1024];
+        std::vector<lObject> objects;
 
         file = fopen(filename, "r");
-        if (file == NULL)
-        {
-                fprintf(stderr, "load_obj can not load %s\n", filename);
-                return;
+        if (file == NULL) {
+                fprintf(stderr, "load_obj can not load %s", filename);
+                perror("");
+                return objects;
         }
 
-#define INC_VAO_ARR()                                                          \
-        (*vao_arr = (unsigned int *) REALLOCARRAY(*vao_arr, *vao_arr_size + 1, \
-                                                  sizeof(unsigned int)))
-
-#define INC_INDEXES_ARR()                                                    \
-        (*indexes_size_arr =                                                 \
-         (unsigned int *) REALLOCARRAY(*indexes_size_arr, *vao_arr_size + 1, \
-                                       sizeof(unsigned int)))
-
-
-        while (fgets(buf, sizeof buf - 1, file))
-        {
-                if (!memcmp(buf, "o ", 2))
-                {
-                        if (obj.v_size > 0)
-                        {
+        while (fgets(buf, sizeof buf - 1, file)) {
+                if (!memcmp(buf, "o ", 2)) {
+                        if (obj.v_size > 0) {
                                 __obj_print_info();
-                                if (options & LOAD_3_3)
-                                {
-                                        INC_VAO_ARR();
-                                        INC_INDEXES_ARR();
-                                        __load_to_vao(&((*vao_arr)[*vao_arr_size]),
-                                                      &((*indexes_size_arr)[*vao_arr_size]));
-
-                                        debug_printf("LOADED %d indexes (%d "
-                                                     "triangles)\n",
-                                                     (*indexes_size_arr)[*vao_arr_size],
-                                                     (*indexes_size_arr)[*vao_arr_size] / 3);
-                                        ++*vao_arr_size;
+                                if (options & LOAD_3_3) {
+                                        lObject o;
+                                        __load_to_vao(&o);
+                                        objects.push_back(o);
                                 }
                                 if (options & LOAD_1_2)
                                         printf("LOAD 1.2 not implemented!\n");
@@ -663,17 +582,10 @@ load_obj(const char *filename, unsigned int **vao_arr,
         }
 
         __obj_print_info();
-        if (options & LOAD_3_3)
-        {
-                INC_VAO_ARR();
-                INC_INDEXES_ARR();
-                __load_to_vao(&((*vao_arr)[*vao_arr_size]),
-                              &((*indexes_size_arr)[*vao_arr_size]));
-
-                debug_printf("LOADED %d indexes (%d triangles)\n",
-                             (*indexes_size_arr)[*vao_arr_size],
-                             (*indexes_size_arr)[*vao_arr_size] / 3);
-                ++*vao_arr_size;
+        if (options & LOAD_3_3) {
+                lObject o;
+                __load_to_vao(&o);
+                objects.push_back(o);
         }
         if (options & LOAD_1_2)
                 printf("LOAD 1.2 not implemented!\n");
@@ -688,8 +600,7 @@ load_obj(const char *filename, unsigned int **vao_arr,
 int
 main(int argc, char *argv[])
 {
-        if (argc < 2)
-        {
+        if (argc < 2) {
                 printf("Usage: %s <file.obj>\n", argv[0]);
                 return 0;
         }

@@ -18,6 +18,11 @@
  * 0: do not show debugging info */
 #define DEBUG 0
 
+typedef struct lObject {
+        unsigned int vao;
+        unsigned int index_n;
+} lObject;
+
 enum __options
 // no yet implemented
 {
@@ -26,8 +31,9 @@ enum __options
         LOAD_1_2 = 2, /* Load using opengl version 1.2 */
 };
 
-/* Load wavefront (.obj) file (filename) into vao array. */
-void load_obj(const char *filename, unsigned int **vao_arr,
-              unsigned int *vao_arr_size, unsigned int **indexes_size, int options);
+#include <vector>
+
+/* Load wavefront (.obj) file (filename) into objects. */
+std::vector<lObject> load_obj(const char* filename, int options);
 
 #endif
