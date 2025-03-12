@@ -593,6 +593,7 @@ load_obj(const char *filename, int options)
 
         __delete_obj();
         fclose(file);
+        return objects;
 }
 
 #ifdef TEST
