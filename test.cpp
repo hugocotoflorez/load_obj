@@ -1,5 +1,7 @@
 #include <glad/glad.h> // have to be included before glfw3.h
 
+#include "display_obj.h"
+#include "load_mtl.h"
 #include "load_obj.h"
 
 #include <glm/glm.hpp>
@@ -14,7 +16,7 @@
 #include <strings.h>
 #include <vector>
 
-#define BG_COLOR .0f, .0f, .0f, 1.0f
+#define BG_COLOR .9f, .9f, .9f, 1.0f
 #define WIDTH 640
 #define HEIGHT 480
 
@@ -78,6 +80,34 @@ __process_input(GLFWwindow *window)
         // Rotar a la derecha con D
         if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
                 rotationAngle_Y += 2.0f;
+
+#define DISPLAY_ONLY_OBJECT_N(n)                                                        \
+        if (glfwGetKey(window, GLFW_KEY_##n + 1) == GLFW_PRESS && objects.size() > n) { \
+                for (int i = 0; i < objects.size(); i++) {                              \
+                        if (i == n)                                                     \
+                                objects.at(i).no_display = 0;                           \
+                        else                                                            \
+                                objects.at(i).no_display = 1;                           \
+                }                                                                       \
+        }
+
+        DISPLAY_ONLY_OBJECT_N(0);
+        DISPLAY_ONLY_OBJECT_N(1);
+        DISPLAY_ONLY_OBJECT_N(2);
+        DISPLAY_ONLY_OBJECT_N(3);
+        DISPLAY_ONLY_OBJECT_N(4);
+        DISPLAY_ONLY_OBJECT_N(5);
+        DISPLAY_ONLY_OBJECT_N(6);
+        DISPLAY_ONLY_OBJECT_N(7);
+        DISPLAY_ONLY_OBJECT_N(8);
+        DISPLAY_ONLY_OBJECT_N(9);
+
+        // RESET
+        if (glfwGetKey(window, GLFW_KEY_0) == GLFW_PRESS) {
+                for (int i = 0; i < objects.size(); i++) {
+                        objects.at(i).no_display = 0;
+                }
+        }
 }
 
 /* This function is called on window resize */
@@ -167,14 +197,15 @@ main(int argc, char **argv)
          * - `GL_LINE`: Renders only the edges as wireframes.
          * - `GL_FILL`: Renders solid, filled polygons (default).  */
         // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 
         if (argc == 2)
                 objects = load_obj(argv[1], LOAD_3_3);
         else {
                 printf("Usage %s <file.obj>\n", argv[0]);
-                exit(0);
+                objects = load_obj("source/barco.obj", LOAD_3_3);
+                // exit(0);
         }
 
 
@@ -182,13 +213,16 @@ main(int argc, char **argv)
 
         printf("%zu vaos loaded\n", objects.size());
 
+        for (lObject &obj : objects)
+                obj.shader = shader_program;
+
 
         assert(objects.size() > 0);
 
         mainloop(window);
 
 
-        // glfwDestroyWindow(window);
+        glfwDestroyWindow(window);
         glfwTerminate();
 
         return 0;
@@ -198,11 +232,6 @@ main(int argc, char **argv)
 int
 mainloop(GLFWwindow *window)
 {
-        GLuint projectionLoc =
-        glGetUniformLocation(shader_program, "projection");
-        GLuint viewLoc = glGetUniformLocation(shader_program, "view");
-        unsigned int VAO;
-
         /* Execute until window is closed */
         while (!glfwWindowShouldClose(window)) {
                 // Call our process input function
@@ -225,99 +254,18 @@ mainloop(GLFWwindow *window)
                 model = glm::rotate(model, glm::radians(rotationAngle_X),
                                     glm::vec3(1.0f, 0.0f, 0.0f)); // Rotar en eje X
 
-                GLuint modelLoc = glGetUniformLocation(shader_program, "model");
-                glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-
-                glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
-                glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
-
                 for (lObject obj : objects) {
-                        VAO = obj.vao;
-                        /* Binds the specified Vertex Array Object
-                         * (VAO).
-                         * This ensures that subsequent vertex
-                         * operations use the correct VAO
-                         * configuration.
-                         * Without this, OpenGL wouldn't know which
-                         * vertex data to use. */
-                        glBindVertexArray(VAO);
-
-                        /* Renders primitives (lines, triangles, etc.)
-                         * using vertex data in order.
-                         * - `GL_LINES`: Draws lines, each pair of
-                         *   vertices forms a line.
-                         * - `0`: Starts from the first vertex in
-                         *   the buffer.
-                         * - `6`: Number of vertices to process
-                         *   (draws 3 lines).
-                         * Use this when you don't need indexed
-                         * drawing. */
-                        // glDrawArrays(GL_LINES, 0, 6);
-                        // glDrawArrays(GL_TRIANGLES, 0, 6); // for square
-
-                        /* Renders primitives using indexed drawing
-                         * with an Element Buffer Object (EBO).
-                         * - `GL_LINES`: Draws lines using the
-                         *   specified indices.
-                         * - `6`: Number of indices to read from the
-                         *   EBO.
-                         * - `GL_UNSIGNED_INT`: Type of the indices
-                         *   in the EBO.
-                         * - `0`: Start at the beginning of the EBO.
-                         * Use this when vertices are reused to
-                         * optimize memory usage. */
-                        // glDrawElements(GL_LINES, 6, GL_UNSIGNED_INT, 0);
-
-                        assert(VAO);
-
-                        glDrawElements(GL_TRIANGLES, obj.index_n, GL_UNSIGNED_INT, 0);
-
-                        /* Unbinds the currently active VAO.
-                         * This prevents unintended modifications to
-                         * the VAO.
-                         * It's a good practice when working with
-                         * multiple VAOs. */
-                        glBindVertexArray(0);
+                        obj_set_mats(&obj, view, model, projection);
+                        display_obj(obj);
                 }
 
-                /* @brief Swaps the front and back buffers of
-                 * the specified window.
-                 * This function swaps the front and back
-                 * buffers of the specified window when
-                 * rendering with OpenGL or OpenGL ES.
-                 * If the swap interval is greater than zero,
-                 * the GPU driver waits the specified number of
-                 * screen updates before swapping the buffers. */
-                /* ~~ load new frame */
                 glfwSwapBuffers(window);
-
-                /* @brief Processes all pending events.
-                 * This function processes only those events
-                 * that are already in the event queue and
-                 * then returns immediately. Processing
-                 * events will cause the window and input
-                 * callbacks associated with those events
-                 * to be called. */
-                /* It does not block */
                 glfwPollEvents();
         }
-
-        /* Deletes the specified Vertex Array Object (VAO).
-         * This frees the GPU memory associated with the VAO.
-         * It's important to call this when the VAO is no
-         * longer needed to avoid memory leaks.
-         */
 
         for (lObject &obj : objects) {
                 glDeleteVertexArrays(1, &obj.vao);
         }
-
-        /* Deletes the specified Vertex Buffer Object (VBO).
-         * This releases the allocated GPU memory for vertex
-         * data. Deleting unused buffers
-         * helps optimize resource usage.
-         */
-        // glDeleteBuffers(1, &VBO);
 
         return 0;
 }

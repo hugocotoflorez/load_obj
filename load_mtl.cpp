@@ -1,4 +1,5 @@
 #include "load_mtl.h"
+#include <cassert>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -10,28 +11,41 @@
 #include <strings.h>
 #include <vector>
 
-#define TEXTURE_PATH "textures/"
+#define endwith(src, sufix) \
+        (strcmp((src) + strlen((src)) - strlen((sufix)), (sufix)) == 0)
 
 #define ZERO(obj_ptr) memset((obj_ptr), 0, sizeof(*obj_ptr));
 
 lMaterial material;
 
 GLuint
-load_texture(lMaterial *mat)
+load_texture(lMaterial &mat)
 {
-        glGenTextures(1, &mat->texture);
-        glBindTexture(GL_TEXTURE_2D, mat->texture);
+        if (mat.texture > 0) {
+                printf("Texture loaded yet\n");
+                return mat.texture;
+        }
+
+        if (mat.image == NULL) {
+                printf("Material has no image data!\n");
+                return 0;
+        }
+        glGenTextures(1, &mat.texture);
+        glBindTexture(GL_TEXTURE_2D, mat.texture);
 
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, mat->width, mat->height, 0,
-                     GL_RGBA, GL_UNSIGNED_BYTE, mat->image);
+        assert(mat.width > 0 && mat.height > 0);
+
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, mat.width, mat.height, 0,
+                     GL_RGBA, GL_UNSIGNED_BYTE, mat.image);
+        glGenerateMipmap(GL_TEXTURE_2D);
 
         glBindTexture(GL_TEXTURE_2D, 0);
-        return mat->texture;
+        return mat.texture;
 }
 
 void
@@ -42,18 +56,19 @@ free_mat(lMaterial *mat)
         ZERO(mat)
 }
 
-void free_mat(std::vector<lMaterial> &mats)
+void
+free_mat(std::vector<lMaterial> &mats)
 {
         for (lMaterial mat : mats)
                 free_mat(&mat);
 }
 
 GLuint
-load_texture_free_mat(lMaterial *mat)
+load_texture_free_mat(lMaterial &mat)
 {
         load_texture(mat);
-        stbi_image_free(mat->image);
-        return mat->texture;
+        stbi_image_free(mat.image);
+        return mat.texture;
 }
 
 
@@ -72,10 +87,7 @@ __add_map_Kd(const char *str)
         stbi_set_flip_vertically_on_load(1);
 
         material.image = stbi_load(s, &material.width, &material.height,
-                                     &material.comp, STBI_rgb_alpha);
-
-#define endwith(src, sufix) \
-        (strcmp((src) + strlen((src)) - strlen((sufix)), (sufix)) == 0)
+                                   &material.comp, STBI_rgb_alpha);
 
         if (material.image == NULL) {
                 if (endwith(s, "jpg")) {
@@ -132,7 +144,7 @@ __add_Ns(const char *str)
         sscanf(str, "%f", &material.Ns);
 }
 
-void
+static void
 __named_object(const char *str)
 {
         material.name = strdup(str);
@@ -152,7 +164,7 @@ load_mtl(const char *filename, int options)
 
         file = fopen(filename, "r");
         if (file == NULL) {
-                fprintf(stderr, "load_obj can not load %s", filename);
+                fprintf(stderr, "load_mtl can not load %s: ", filename);
                 perror("");
                 return materials;
         }
@@ -188,37 +200,35 @@ load_mtl(const char *filename, int options)
         materials.push_back(material);
         ZERO(&material);
         fclose(file);
+
+        for (int i = 0; i < materials.size(); i++) {
+                materials.at(i).id = i;
+        }
+
+        for (lMaterial m : materials)
+                print_material(m);
+
+        // exit(1);
+
         return materials;
 }
 
-#define LOAD_MTL_TEST
-#ifdef LOAD_MTL_TEST
 
 void
 print_material(lMaterial mat)
 {
         printf("newmtl %s\n"
-               "Ns %f\n"
-               "Ka %f %f %f\n"
-               "Ks %f %f %f\n"
-               "Ke %f %f %f\n"
-               "Ni %f\n"
-               "d %f\n"
-               "illum %d\n"
-               "height %d\n"
-               "width %d\n\n",
-               mat.name, mat.Ns, mat.Ka[0], mat.Ka[1], mat.Ka[2], mat.Ks[0],
+               "  id: %d\n"
+               "  Ns %f\n"
+               "  Ka %f %f %f\n"
+               "  Ks %f %f %f\n"
+               "  Ke %f %f %f\n"
+               "  Ni %f\n"
+               "  d %f\n"
+               "  illum %d\n"
+               "  height %d\n"
+               "  width %d\n\n",
+               mat.name, mat.id, mat.Ns, mat.Ka[0], mat.Ka[1], mat.Ka[2], mat.Ks[0],
                mat.Ks[1], mat.Ks[2], mat.Ke[0], mat.Ke[1], mat.Ke[2], mat.Ni,
                mat.d, mat.illum, mat.height, mat.width);
 }
-
-int
-main()
-{
-        std::vector<lMaterial> materials;
-        materials = load_mtl("./source/WoodenChessSet.mtl");
-        for (lMaterial m : materials)
-                print_material(m);
-}
-
-#endif
