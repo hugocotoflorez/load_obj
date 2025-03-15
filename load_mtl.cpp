@@ -1,5 +1,6 @@
 #include "load_mtl.h"
 #include <cassert>
+#include <cstdlib>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -168,6 +169,15 @@ load_mtl(const char *filename, int options)
                 perror("");
                 return materials;
         }
+
+        ZERO(&material);
+
+        /* Default mat */
+        material.name = strdup("DefaultZeroMat");
+        material.width = 1;
+        material.height = 1;
+        material.image = (unsigned char *) calloc(1, sizeof(char));
+        materials.push_back(material);
 
         ZERO(&material);
 

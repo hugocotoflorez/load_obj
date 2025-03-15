@@ -7,7 +7,7 @@ all:
 	./test ; sudo systemctl start keyd ; rm test
 
 test: $(SRC) $(LIBS) makefile stb_image.h
-	g++ $(SRC) -o test -lglad -lglfw -g
+	g++ $(SRC) -o test -lglad -lglfw -ggdb
 
 stb_image.h:
 	wget https://raw.githubusercontent.com/nothings/stb/refs/heads/master/stb_image.h

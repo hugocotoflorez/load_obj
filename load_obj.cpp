@@ -272,7 +272,7 @@ __add_material(char *str, std::vector<lMaterial> *materials)
         if ((c = strchr(str, '\n')))
                 *c = 0;
 
-        for (int i = 0; i < materials->size(); i++) {
+        for (int i = 1; i < materials->size(); i++) {
                 lMaterial *mat = materials->data() + i;
                 if (strcmp(mat->name, str) == 0) {
                         obj.material = mat;
@@ -280,6 +280,7 @@ __add_material(char *str, std::vector<lMaterial> *materials)
                 }
         }
 
+        obj.material = materials->data();
         printf("Material %s not found!\n", str);
 }
 
@@ -318,12 +319,14 @@ __add_mtl_file(const char *buf, std::vector<lMaterial> &materials)
  */
 
 void
-__create_new_obj(std::vector<lObject> &objects, int options)
+__create_new_obj(std::vector<lObject> &objects, std::vector<lMaterial> *materials, int options)
 {
         if (__is_valid_obj()) {
                 if (obj.material->image != NULL) {
                         if (options & LOAD_3_3) {
                                 lObject o;
+                                if (obj.material == NULL)
+                                        obj.material = materials->data();
                                 __load_to_vao(&o);
                                 objects.push_back(o);
                         }
@@ -364,7 +367,7 @@ load_obj(const char *filename, int options)
         while (fgets(buf, sizeof buf - 1, file)) {
                 if (!memcmp(buf, "o ", 2)) {
                         __add_name(buf + 2);
-                        __create_new_obj(objects, options);
+                        __create_new_obj(objects, &materials, options);
                 }
                 if (!memcmp(buf, "v ", 2))
                         __add_vertex(buf + 2);
@@ -383,11 +386,11 @@ load_obj(const char *filename, int options)
 
                 if (!memcmp(buf, "usemtl ", 7)) {
                         __add_material(buf + 7, &materials);
-                        __create_new_obj(objects, options);
+                        __create_new_obj(objects, &materials, options);
                 }
         }
 
-        __create_new_obj(objects, options);
+        __create_new_obj(objects, &materials, options);
         fclose(file);
 
         for (lObject obj : objects) {
@@ -401,4 +404,3 @@ load_obj(const char *filename, int options)
 
         return objects;
 }
-
