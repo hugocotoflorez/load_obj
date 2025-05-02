@@ -46,12 +46,13 @@ __clear_obj()
 {
         obj.face.clear();
         obj.line.clear();
+        obj.material = nullptr;
 }
 
 static std::vector<float>
 __compute_data(std::vector<unsigned int> &ind)
 {
-        printf("Computing data ...");
+        // printf("Computing data ...");
         std::vector<float> data;
         std::vector<unsigned int> temp_ind;
 
@@ -60,12 +61,12 @@ __compute_data(std::vector<unsigned int> &ind)
                         fvec f = face.at(i);
 
                         if (obj.vertex.size() < f.v) {
-                                printf("Vertex oob\n");
+                                // printf("Vertex oob\n");
                                 continue;
                         }
 
                         if (obj.texture.size() < f.vt) {
-                                printf("Texture oob\n");
+                                // printf("Texture oob\n");
                                 continue;
                         }
 
@@ -83,20 +84,21 @@ __compute_data(std::vector<unsigned int> &ind)
                         unsigned int fails = 0;
 
                         if (obj.texture.at(f.vt - 1).u > 1.0f || obj.texture.at(f.vt - 1).u < 0.0f) {
-                                printf("[!] obj.texture.at(f.vt - 1).u > 1.0f FAILED\n");
+                                // printf("[!] obj.texture.at(f.vt - 1).u > 1.0f FAILED\n");
                                 ++fails;
                         }
                         if (obj.texture.at(f.vt - 1).v > 1.0f || obj.texture.at(f.vt - 1).v < 0.0f) {
-                                printf("[!] obj.texture.at(f.vt - 1).v > 1.0f FAILED\n");
+                                // printf("[!] obj.texture.at(f.vt - 1).v > 1.0f FAILED\n");
                                 ++fails;
                         }
                         if (obj.texture.at(f.vt - 1).w > 1.0f || obj.texture.at(f.vt - 1).w < 0.0f) {
-                                printf("[!] obj.texture.at(f.vt - 1).w > 1.0f FAILED\n");
+                                // printf("[!] obj.texture.at(f.vt - 1).w > 1.0f FAILED\n");
                                 ++fails;
                         }
 
-                        if (fails)
+                        if (fails) {
                                 printf("Errors in textures: %u\n", fails);
+                        }
                 }
 
                 for (int i = 0; i < temp_ind.size() - 2; i++) {
@@ -107,10 +109,10 @@ __compute_data(std::vector<unsigned int> &ind)
 
                 temp_ind.clear();
         }
-        printf(" data computed: \n"
-               " %zu vertex\n"
-               " %zu indexes\n",
-               data.size(), ind.size());
+        // printf(" data computed: \n"
+        // " %zu vertex\n"
+        // " %zu indexes\n",
+        // data.size(), ind.size());
 
         return data;
 }
@@ -158,9 +160,10 @@ __load_to_vao(lObject *o)
         o->index_n = indexes.size();
 
         // load texture and link it to a texture if not linked */
-        load_texture(*obj.material);
-
-        o->material = obj.material;
+        if (obj.material) {
+                load_texture(*obj.material);
+                o->material = obj.material;
+        }
 
         glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 7 * sizeof(*data.data()), (void *) 0);
         glEnableVertexAttribArray(0);
@@ -266,39 +269,39 @@ __add_line(const char *s)
 }
 
 void
-__add_material(char *str, std::vector<lMaterial> *materials)
+__add_material(char *str, std::vector<lMaterial> *_materials)
 {
         char *c;
         if ((c = strchr(str, '\n')))
                 *c = 0;
 
-        for (int i = 1; i < materials->size(); i++) {
-                lMaterial *mat = materials->data() + i;
+        for (int i = 1; i < _materials->size(); i++) {
+                lMaterial *mat = _materials->data() + i;
                 if (strcmp(mat->name, str) == 0) {
                         obj.material = mat;
                         return;
                 }
         }
 
-        obj.material = materials->data();
+        obj.material = _materials->data();
         printf("Material %s not found!\n", str);
 }
 
 void
-__add_mtl_file(const char *buf, std::vector<lMaterial> &materials)
+__add_mtl_file(const char *buf, std::vector<lMaterial> &_materials)
 {
-        char buf2[256];
+        char buf2[1024];
         char *c;
         strcpy(buf2, SOURCE_PATH);
         strcat(buf2, buf + 7);
         if ((c = strrchr(buf2, '\r')))
-                *c = 0; // strip \n
+                *c = 0; // strip \r
         if ((c = strrchr(buf2, '\n')))
                 *c = 0; // strip \n
 
         // Allow multiple mtl files
         for (lMaterial mat : load_mtl(buf2))
-                materials.push_back(mat);
+                _materials.push_back(mat);
 }
 
 /*
@@ -319,15 +322,17 @@ __add_mtl_file(const char *buf, std::vector<lMaterial> &materials)
  */
 
 void
-__create_new_obj(std::vector<lObject> &objects, std::vector<lMaterial> *materials, int options)
+__create_new_obj(std::vector<lObject> &objects, std::vector<lMaterial> *_materials, int options)
 {
         if (__is_valid_obj()) {
-                if (obj.material->image != NULL) {
+                if (!obj.material || obj.material->image != NULL) {
                         if (options & LOAD_3_3) {
                                 lObject o;
+                                memset(&o, 0, sizeof(o));
                                 if (obj.material == NULL)
-                                        obj.material = materials->data();
+                                        obj.material = _materials->data();
                                 __load_to_vao(&o);
+                                strcpy(o.name, strdup(o.name));
                                 objects.push_back(o);
                         }
                         if (options & LOAD_1_2)
@@ -348,58 +353,64 @@ __add_name(const char *str)
 }
 
 
-std::vector<lMaterial> materials;
+static std::vector<lMaterial> _mats;
 
 std::vector<lObject>
 load_obj(const char *filename, int options)
 {
         FILE *file;
-        char buf[1024];
+        char line[1024];
         std::vector<lObject> objects;
 
         file = fopen(filename, "r");
         if (file == NULL) {
-                fprintf(stderr, "load_obj can not load %s", filename);
+                fprintf(stderr, "load_obj: can not find %s", filename);
                 perror("");
                 return objects;
         }
 
-        while (fgets(buf, sizeof buf - 1, file)) {
-                if (!memcmp(buf, "o ", 2)) {
-                        __add_name(buf + 2);
-                        __create_new_obj(objects, &materials, options);
+        while (fgets(line, sizeof line - 1, file)) {
+                if (!memcmp(line, "o ", 2)) {
+                        __add_name(line + 2);
+                        __create_new_obj(objects, &_mats, options);
+                } else if (!memcmp(line, "f ", 2))
+                        __add_face(line + 2);
+                else if (!memcmp(line, "v ", 2))
+                        __add_vertex(line + 2);
+                else if (!memcmp(line, "vt ", 3))
+                        __add_texture(line + 3);
+                else if (!memcmp(line, "vn ", 3))
+                        __add_normal(line + 3);
+                else if (!memcmp(line, "vp ", 3))
+                        __add_parameter(line + 3);
+                else if (!memcmp(line, "l ", 2))
+                        __add_line(line + 2);
+                else if (!memcmp(line, "mtllib ", 7))
+                {
+                        printf("Adding MTL file\n");
+                       __add_mtl_file(line, _mats);
+                        printf("Added MTL file\n");
                 }
-                if (!memcmp(buf, "v ", 2))
-                        __add_vertex(buf + 2);
-                if (!memcmp(buf, "vt ", 3))
-                        __add_texture(buf + 3);
-                if (!memcmp(buf, "vn ", 3))
-                        __add_normal(buf + 3);
-                if (!memcmp(buf, "vp ", 3))
-                        __add_parameter(buf + 3);
-                if (!memcmp(buf, "f ", 2))
-                        __add_face(buf + 2);
-                if (!memcmp(buf, "l ", 2))
-                        __add_line(buf + 2);
-                if (!memcmp(buf, "mtllib ", 7))
-                        __add_mtl_file(buf, materials);
-
-                if (!memcmp(buf, "usemtl ", 7)) {
-                        __add_material(buf + 7, &materials);
-                        __create_new_obj(objects, &materials, options);
+                else if (!memcmp(line, "usemtl ", 7)) {
+                        __add_material(line + 7, &_mats);
+                        __create_new_obj(objects, &_mats, options);
                 }
         }
 
-        __create_new_obj(objects, &materials, options);
+        __create_new_obj(objects, &_mats, options);
         fclose(file);
 
+#if defined(QUIET) && QUIET == 0
         for (lObject obj : objects) {
                 printf("New Object created:\n");
                 printf("  name: %s\n", obj.name);
                 printf("  VAO: %u\n", obj.vao);
-                printf("  MAT: %s\n", obj.material->name);
-                printf("  MAT id: %u\n", obj.material->texture);
+                if (obj.material && obj.material->name) {
+                        printf("  MAT: %s\n", obj.material->name);
+                        printf("  MAT id: %u\n", obj.material->texture);
+                }
                 printf("\n");
+#endif
         }
 
         return objects;

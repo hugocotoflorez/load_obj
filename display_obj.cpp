@@ -32,14 +32,14 @@ display_obj(lObject obj)
                 return;
 
         if (currentShader != obj.shader) {
-                printf("Shader set to %d\n", obj.shader);
+                // printf("Shader set to %d\n", obj.shader);
                 glUseProgram(obj.shader);
                 currentShader = obj.shader;
         }
 
         if (!glIsTexture(obj.material->texture)) {
-                printf("Texture %d is not bound\n",
-                       obj.material->texture);
+                // printf("Texture %d is not bound\n",
+                       // obj.material->texture);
         }
 
         if (obj.material->texture > 0) {
@@ -51,14 +51,14 @@ display_obj(lObject obj)
         GLuint modelLoc = glGetUniformLocation(obj.shader, "model");
         GLuint textureLoc = glGetUniformLocation(obj.shader, "texture1");
 
-        if (viewLoc == -1)
-                printf("[!] Uniform 'view' no encontrado en el shader!\n");
-        if (projectionLoc == -1)
-                printf("[!] Uniform 'projection' no encontrado en el shader!\n");
-        if (modelLoc == -1)
-                printf("[!] Uniform 'model' no encontrado en el shader!\n");
-        if (textureLoc == -1)
-        printf("[!] Uniform 'texture1' no encontrado en el shader!\n");
+        // if (viewLoc == -1)
+        //         printf("[!] Uniform 'view' no encontrado en el shader!\n");
+        // if (projectionLoc == -1)
+        //         printf("[!] Uniform 'projection' no encontrado en el shader!\n");
+        // if (modelLoc == -1)
+        //         printf("[!] Uniform 'model' no encontrado en el shader!\n");
+        // if (textureLoc == -1)
+        // printf("[!] Uniform 'texture1' no encontrado en el shader!\n");
 
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(obj.view));
         glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(obj.projection));
@@ -71,7 +71,7 @@ display_obj(lObject obj)
         GLint currentTexture;
         glGetIntegerv(GL_TEXTURE_BINDING_2D, &currentTexture);
         if (currentTexture != obj.material->texture) {
-                printf("[!] Textura incorrecta! Esperado: %d, Actual: %d\n", obj.material->texture, currentTexture);
+                // printf("[!] Textura incorrecta! Esperado: %d, Actual: %d\n", obj.material->texture, currentTexture);
         }
 
         glBindVertexArray(obj.vao);

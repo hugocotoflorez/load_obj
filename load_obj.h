@@ -1,6 +1,3 @@
-#ifndef LOAD_OBJ_H
-#define LOAD_OBJ_H
-
 /* +-----------------------------------------------------+ *
  * | Author: Hugo Coto Florez                            | *
  * | Contact: hugo.coto@rai.usc.es                       | *
@@ -8,20 +5,23 @@
  * | Licenseless: Free open source without any warranty. | *
  * +-----------------------------------------------------+ */
 
+#ifndef LOAD_OBJ_H
+#define LOAD_OBJ_H
+
+#include "load_mtl.h"
+
 /* QUIET possible values
  * 1: Supress any output
  * 0: Show loaded object info */
 
-#include "load_mtl.h"
-
-#define QUIET 1
+#define QUIET 0
 
 /* DEBUG possible values.
  * 1: show info about loading process
  * 0: do not show debugging info */
 #define DEBUG 0
 
-#define SOURCE_PATH "source/"
+#define SOURCE_PATH "assets/"
 
 #include <glm/glm.hpp>
 

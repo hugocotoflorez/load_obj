@@ -91,7 +91,7 @@ printProgramInfoLog(GLuint obj)
         {
                 infoLog = (char *) malloc(infologLength);
                 glGetProgramInfoLog(obj, infologLength, &charsWritten, infoLog);
-                printf("%s\n", infoLog);
+                // printf("%s\n", infoLog);
                 free(infoLog);
         }
 }

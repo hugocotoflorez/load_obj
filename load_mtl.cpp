@@ -2,7 +2,7 @@
 #include <cassert>
 #include <cstdlib>
 
-#define STB_IMAGE_IMPLEMENTATION
+// #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
 #include <glad/glad.h>
@@ -76,7 +76,7 @@ load_texture_free_mat(lMaterial &mat)
 void
 __add_map_Kd(const char *str)
 {
-        char s[256];
+        char s[1024];
         strcpy(s, TEXTURE_PATH);
         strcat(s, str);
         char *c;
@@ -156,12 +156,13 @@ __named_object(const char *str)
                 *c = 0;
 }
 
+static std::vector<lMaterial> materials;
+
 std::vector<lMaterial>
 load_mtl(const char *filename, int options)
 {
         FILE *file;
         char buf[1024];
-        std::vector<lMaterial> materials;
 
         file = fopen(filename, "r");
         if (file == NULL) {
@@ -217,8 +218,6 @@ load_mtl(const char *filename, int options)
 
         for (lMaterial m : materials)
                 print_material(m);
-
-        // exit(1);
 
         return materials;
 }

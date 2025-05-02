@@ -1,8 +1,6 @@
 #ifndef LOAD_MTL_H
 #define LOAD_MTL_H
-#define TEXTURE_PATH "textures/"
-
-#define TEXTURE_PATH "textures/"
+#define TEXTURE_PATH "assets/"
 
 
 typedef struct lMaterial {
