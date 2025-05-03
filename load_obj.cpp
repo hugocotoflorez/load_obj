@@ -413,8 +413,8 @@ load_obj(const char *filename, int options)
                         printf("  MAT id: %u\n", obj.material->texture);
                 }
                 printf("\n");
-#endif
         }
+#endif
 
         return objects;
 }

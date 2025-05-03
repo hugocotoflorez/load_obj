@@ -14,7 +14,7 @@
  * 1: Supress any output
  * 0: Show loaded object info */
 
-#define QUIET 0
+#define QUIET 1
 
 /* DEBUG possible values.
  * 1: show info about loading process

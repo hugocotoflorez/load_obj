@@ -163,6 +163,7 @@ load_mtl(const char *filename, int options)
 {
         FILE *file;
         char buf[1024];
+        materials.clear();
 
         file = fopen(filename, "r");
         if (file == NULL) {
@@ -184,7 +185,7 @@ load_mtl(const char *filename, int options)
 
         while (fgets(buf, sizeof buf - 1, file)) {
                 if (!memcmp(buf, "newmtl ", 7)) {
-                        if (material.image != NULL) {
+                        if (material.name != NULL) {
                                 materials.push_back(material);
                         }
                         ZERO(&material);
@@ -226,6 +227,7 @@ load_mtl(const char *filename, int options)
 void
 print_material(lMaterial mat)
 {
+#if 0
         printf("newmtl %s\n"
                "  id: %d\n"
                "  Ns %f\n"
@@ -240,4 +242,5 @@ print_material(lMaterial mat)
                mat.name, mat.id, mat.Ns, mat.Ka[0], mat.Ka[1], mat.Ka[2], mat.Ks[0],
                mat.Ks[1], mat.Ks[2], mat.Ke[0], mat.Ke[1], mat.Ke[2], mat.Ni,
                mat.d, mat.illum, mat.height, mat.width);
+#endif
 }
