@@ -391,9 +391,9 @@ load_obj(const char *filename, int options)
                 else if (!memcmp(line, "l ", 2))
                         __add_line(line + 2);
                 else if (!memcmp(line, "mtllib ", 7)) {
-                        printf("Adding MTL file\n");
+                        // printf("Adding MTL file\n");
                         __add_mtl_file(line, _mats);
-                        printf("Added MTL file\n");
+                        // printf("Added MTL file\n");
                 } else if (!memcmp(line, "usemtl ", 7)) {
                         __add_material(line + 7, &_mats);
                         __create_new_obj(objects, &_mats, options);
