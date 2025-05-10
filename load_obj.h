@@ -14,14 +14,14 @@
  * 1: Supress any output
  * 0: Show loaded object info */
 
-#define QUIET 1
+#define QUIET 0
 
 /* DEBUG possible values.
  * 1: show info about loading process
  * 0: do not show debugging info */
-#define DEBUG 0
+#define DEBUG 1
 
-#define SOURCE_PATH "assets/"
+#define SOURCE_PATH "resources/"
 
 #include <glm/glm.hpp>
 

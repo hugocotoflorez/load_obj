@@ -1,4 +1,5 @@
 #include "load_mtl.h"
+#include "load_obj.h"
 #include <cassert>
 #include <cstdlib>
 
@@ -86,6 +87,10 @@ __add_map_Kd(const char *str)
                 *c = 0;
 
         stbi_set_flip_vertically_on_load(1);
+
+#if defined(QUIET) && QUIET == 0
+        printf("Loading image texture: %s\n", s);
+#endif
 
         material.image = stbi_load(s, &material.width, &material.height,
                                    &material.comp, STBI_rgb_alpha);
@@ -227,7 +232,7 @@ load_mtl(const char *filename, int options)
 void
 print_material(lMaterial mat)
 {
-#if 0
+#if defined(QUIET) && QUIET == 0
         printf("newmtl %s\n"
                "  id: %d\n"
                "  Ns %f\n"

@@ -272,6 +272,8 @@ void
 __add_material(char *str, std::vector<lMaterial> *_materials)
 {
         char *c;
+        if ((c = strchr(str, '\r')))
+                *c = 0;
         if ((c = strchr(str, '\n')))
                 *c = 0;
 
